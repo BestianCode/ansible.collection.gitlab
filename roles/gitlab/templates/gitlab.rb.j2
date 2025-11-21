@@ -54,11 +54,13 @@ gitlab_rails['repositories_storages'] = {
 {% endif %}
 {% endif %}
 
+registry['enable'] = {{ gitlab_registry_enable }}
+registry['registry_http_addr'] = "{{ gitlab_registry_http_addr | default('localhost:5000') }}"
+registry_nginx['enable'] = {{ gitlab_registry_nginx_enable | default('false') }}
+
 gitlab_rails['gitlab_email_enabled'] = {{ gitlab_email_enabled }}
 gitlab_rails['ldap_enabled'] = {{ gitlab_ldap_enabled }}
 gitlab_rails['smtp_enable'] = {{ gitlab_smtp_enable }}
-
-registry['enable'] = {{ gitlab_registry_enable }}
 
 {% if not gitlab_use_internal_postgresql %}
 # Disable the bundled Omnibus provided PostgreSQL
