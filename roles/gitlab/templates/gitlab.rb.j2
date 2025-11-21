@@ -56,6 +56,7 @@ gitlab_rails['repositories_storages'] = {
 
 registry['enable'] = {{ gitlab_registry_enable }}
 registry['registry_http_addr'] = "{{ gitlab_registry_http_addr | default('localhost:5000') }}"
+registry['token_realm'] = "{{ gitlab_external_url }}"
 registry_nginx['enable'] = {{ gitlab_registry_nginx_enable | default('false') }}
 
 gitlab_rails['gitlab_email_enabled'] = {{ gitlab_email_enabled }}
