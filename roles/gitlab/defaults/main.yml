@@ -88,6 +88,9 @@ gitlab_smtp_enable: "false"
 gitlab_registry_enable: "false"
 # External URL for the container registry
 gitlab_registry_external_url: "http://localhost:5005"
+gitlab_registry_http_addr: "127.0.0.1:5000"
+# Not to use NGINX in front of the registry
+gitlab_registry_nginx_enable: "false"
 
 # Mattermost configuration
 # Whether GitLab Omnibus is used to run Mattermost only without GitLab
