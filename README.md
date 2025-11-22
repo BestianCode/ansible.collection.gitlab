@@ -70,5 +70,14 @@ Create a playbook that targets each host group:
   runner documentation (Docker, shell, Docker Machine, Flatcar, SSH keys,
   session server, etc.).
 
+## Recent updates
+
+- GitLab role now pauses upgrades until database and batched migrations finish
+  (safe rolling upgrades out of the box).
+- Added a registry cleanup cron + helper script so every project gets sane
+  expiration defaults automatically.
+- Both `gitlab` and `gitlab_runner` roles updated and tested with GitLab
+  18.6.0 / GitLab Runner 18.6.0.
+
 Issues and discussions live at
 <https://github.com/BestianCode/ansible.collection.gitlab>.

@@ -5,7 +5,7 @@ SPDX-FileCopyrightText: Helmholtz-Zentrum Dresden-Rossendorf (HZDR)
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# `hifis.toolkit.gitlab` Ansible Role
+# `bestiancode.gitlab.gitlab` Ansible Role
 
 [![CI Status](https://github.com/hifis-net/ansible-collection-toolkit/actions/workflows/gitlab.yml/badge.svg)](https://github.com/hifis-net/ansible-collection-toolkit/actions/workflows/gitlab.yml)
 
@@ -42,13 +42,13 @@ the desired release. You can find the available releases
 [here](https://packages.gitlab.com/gitlab).
 
 ```yaml
-gitlab_version: "17.4.2"
+gitlab_version: "18.6.0"
 
 # GitLab Release for RHEL/AlmaLinux 9
-gitlab_release: "ce.0.el9"
+gitlab_release: "ee.0.el9"
 
 # GitLab Release for Ubuntu
-gitlab_release: "ce.0"
+gitlab_release: "ee.0"
 ```
 
 **Please note:** If no GitLab version is specified the role will always install
@@ -414,6 +414,43 @@ NGinx care about SSL encryption, please also configure
 `registry_nginx['ssl_certificate']` and `registry_nginx['ssl_certificate_key']`
 via `gitlab_additional_configurations`.
 
+#### Registry default cleanup helper
+
+This role can deploy a helper script that enables the modern registry cleanup
+policy across all projects and keeps it in sync via cron. Toggle it with
+`gitlab_registry_cleanup_policy` and adjust the runner/cron/log paths below.
+
+```yaml
+gitlab_registry_cleanup_policy:
+  enabled: true
+  keep_last: 10
+  keep_tags: latest
+  older_days: null        # allow GitLab defaults (set number of days to override)
+
+gitlab_registry_cleanup_script_path: "/opt/gitlab/scripts/registry_default_cleanup_policy.rb"
+gitlab_registry_cleanup_log_path: "/var/log/gitlab_registry_cleanup.log"
+
+gitlab_registry_cleanup_cron:
+  enabled: true
+  user: "root"
+  minute: "0"
+  hour: "1"
+  day: "*"
+  month: "*"
+  weekday: "*"
+  # optionally override the entire runner command
+  # job: "gitlab-rails runner /opt/gitlab/scripts/custom.rb > /var/log/custom.log 2>&1"
+```
+
+- `gitlab_registry_cleanup_policy` mirrors the GitLab defaults and feeds the
+  helper via environment variables.
+- `gitlab_registry_cleanup_script_path` controls where the template is written
+  (directory ownership is handled automatically).
+- `gitlab_registry_cleanup_log_path` is created/touched and used for stdout/
+  stderr redirection so you always keep the latest run output.
+- `gitlab_registry_cleanup_cron` manages the cron entry (set `enabled: false`
+  to remove it or override `job` for custom runners).
+
 ### Additional Configurations given as Role Variables
 
 Any other configurations that are not yet part of GitLab's configuration file
@@ -490,7 +527,7 @@ None.
 ```yaml
     - hosts: servers
       roles:
-         - role: hifis.toolkit.gitlab
+         - role: bestiancode.gitlab.gitlab
 ```
 
 ## License
@@ -499,11 +536,13 @@ None.
 
 ## Author Information
 
-This role was created by [HIFIS Software Services](https://hifis.net/).
+Originally created by [HIFIS Software Services](https://hifis.net/), this role
+is now maintained and co-authored by **Oleg Smirnov**.
 
 ## Contributors
 
 We would like to thank and give credits to the following contributors of this
 project:
 
+- Oleg Smirnov
 - [flyinggecko](https://github.com/flyinggecko)
