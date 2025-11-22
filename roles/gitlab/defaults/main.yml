@@ -110,6 +110,7 @@ gitlab_registry_cleanup_policy:
   older_days: nil
 
 gitlab_registry_cleanup_script_path: "/opt/gitlab/scripts/registry_default_cleanup_policy.rb"
+gitlab_registry_cleanup_log_path: "/var/log/gitlab_registry_cleanup.log"
 
 gitlab_registry_cleanup_cron:
   enabled: false

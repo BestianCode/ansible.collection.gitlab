@@ -35,15 +35,29 @@ def normalize_cadence(value)
   '7d'
 end
 
+def normalize_older_than(value)
+  return nil if value.nil?
+
+  candidate = value.to_s.strip
+  return nil if candidate.empty? || candidate.casecmp('nil').zero?
+
+  candidate
+end
+
 DEFAULT_KEEP_N     = (ENV['CLEANUP_KEEP_N']    || '{{ cleanup_keep_last }}').to_i
 DEFAULT_CADENCE    = normalize_cadence(ENV['CLEANUP_CADENCE'] || '{{ cleanup_cadence }}')
 DEFAULT_NAME_REGEX = ENV['CLEANUP_NAME_REGEX'] || '.*'
 DEFAULT_NAME_REGEX_KEEP = ENV['CLEANUP_NAME_REGEX_KEEP'] || '{{ cleanup_keep_tag | replace("'", "\\'") }}'
 DEFAULT_POLICY_ENABLED = (ENV['CLEANUP_ENABLED'] || '{% if cleanup_enabled %}true{% else %}false{% endif %}').to_s.downcase == 'true'
-DEFAULT_OLDER_THAN_TEMPLATE = {% if cleanup_older_days is not none %}'{{ cleanup_older_days }}'{% else %}nil{% endif %}
+DEFAULT_OLDER_THAN_TEMPLATE = normalize_older_than(
+{% if cleanup_older_days is not none %}
+  '{{ cleanup_older_days }}'
+{% else %}
+  nil
+{% endif %}
+)
 DEFAULT_OLDER_THAN = begin
-  env_value = ENV['CLEANUP_OLDER_THAN']
-  env_value = nil if env_value.nil? || env_value.strip.empty?
+  env_value = normalize_older_than(ENV['CLEANUP_OLDER_THAN'])
   env_value || DEFAULT_OLDER_THAN_TEMPLATE
 end
 
