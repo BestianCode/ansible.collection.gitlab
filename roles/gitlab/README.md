@@ -13,9 +13,8 @@ A role to install and configure official GitLab Omnibus package.
 
 Currently [supported platforms](meta/main.yml) are:
 
-- AlmaLinux 9
 - Debian 11 (Bullseye)
-- Ubuntu 22.04 LTS (Jemmy Jellyfish)
+- Ubuntu 22.04 LTS (Jammy Jellyfish)
 - Ubuntu 24.04 LTS (Noble Numbat)
 
 ## Requirements
@@ -38,16 +37,13 @@ gitlab_edition: "gitlab-ee"
 #### GitLab Version and Release
 
 Set a specific GitLab version to install. Please ensure that you also specify
-the desired release. You can find the available releases
-[here](https://packages.gitlab.com/gitlab).
+the desired release. You can find the available releases on
+[packages.gitlab.com/gitlab](https://packages.gitlab.com/gitlab).
 
 ```yaml
 gitlab_version: "18.6.0"
 
-# GitLab Release for RHEL/AlmaLinux 9
-gitlab_release: "ee.0.el9"
-
-# GitLab Release for Ubuntu
+# GitLab Release for Debian/Ubuntu packages
 gitlab_release: "ee.0"
 ```
 
@@ -85,12 +81,6 @@ gitlab_repo_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/ubuntu
 ```
 
 #### Source Package Repository URL
-
-URL to the source package repository (*CentOS* and *AlmaLinux* only).
-
-```yaml
-gitlab_source_repo_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/el/{{ ansible_facts.distribution_major_version }}/SRPMS"
-```
 
 #### Package Name
 

@@ -5,6 +5,14 @@
 
 ---
 
+- name: "Ensure supported distribution"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution in ["Debian", "Ubuntu"]
+    fail_msg: >-
+      Only Debian and Ubuntu hosts are supported by this role. Detected
+      {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}.
+
 - name: "Set OS distribution dependent variables"
   ansible.builtin.include_vars: "{{ ansible_facts.distribution }}.yml"
 
