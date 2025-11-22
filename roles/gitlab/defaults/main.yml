@@ -101,4 +101,23 @@ gitlab_rails_monitoring_whitelist:
 # Internal variable to determine whether the configuration object for Gitaly
 # is already present in gitlab_additional_configurations
 __gitaly_configuration_exists: false
+
+# Registry default clreanup policy
+gitlab_registry_cleanup_policy:
+  enabled: false
+  keep_last: 10
+  keep_tags: latest
+  older_days: nil
+
+gitlab_registry_cleanup_script_path: "/opt/gitlab/scripts/registry_default_cleanup_policy.rb"
+
+gitlab_registry_cleanup_cron:
+  enabled: false
+  user: "root"
+  minute: "0"
+  hour: "0"
+  day: "*"
+  month: "*"
+  weekday: "*"
+
 ...

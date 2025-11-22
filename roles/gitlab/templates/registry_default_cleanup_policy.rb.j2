@@ -1,0 +1,130 @@
+{% set cleanup_policy = gitlab_registry_cleanup_policy | default({}) %}
+{% set cleanup_enabled = cleanup_policy.enabled | default(false) %}
+{% set cleanup_keep_last = cleanup_policy.keep_last | default(10) %}
+{% set cleanup_keep_tag = cleanup_policy.keep_tag | default(cleanup_policy.keep_tags, true) | default('latest') %}
+{% set cleanup_older_days = cleanup_policy.older_days %}
+{% set cleanup_cadence = cleanup_policy.cadence | default('7d') %}
+
+VALID_CADENCES = %w[1d 7d 14d 1month 3month].freeze
+
+CADENCE_ALIASES = {
+  '1day'    => '1d',
+  'daily'   => '1d',
+  '24h'     => '1d',
+  '1week'   => '7d',
+  'oneweek' => '7d',
+  'weekly'  => '7d',
+  '1wk'     => '7d',
+  '14days'  => '14d',
+  '2weeks'  => '14d',
+  'fortnight' => '14d',
+  'monthly'   => '1month',
+  '1m'        => '1month',
+  '30d'       => '1month',
+  'quarterly' => '3month',
+  '3months'   => '3month'
+}.freeze
+
+def normalize_cadence(value)
+  raw = value.to_s.strip.downcase
+  normalized = CADENCE_ALIASES.fetch(raw, raw)
+
+  return normalized if VALID_CADENCES.include?(normalized)
+
+  warn "[WARN] Unsupported cadence '#{value}', defaulting to '7d'"
+  '7d'
+end
+
+DEFAULT_KEEP_N     = (ENV['CLEANUP_KEEP_N']    || '{{ cleanup_keep_last }}').to_i
+DEFAULT_CADENCE    = normalize_cadence(ENV['CLEANUP_CADENCE'] || '{{ cleanup_cadence }}')
+DEFAULT_NAME_REGEX = ENV['CLEANUP_NAME_REGEX'] || '.*'
+DEFAULT_NAME_REGEX_KEEP = ENV['CLEANUP_NAME_REGEX_KEEP'] || '{{ cleanup_keep_tag | replace("'", "\\'") }}'
+DEFAULT_POLICY_ENABLED = (ENV['CLEANUP_ENABLED'] || '{% if cleanup_enabled %}true{% else %}false{% endif %}').to_s.downcase == 'true'
+DEFAULT_OLDER_THAN_TEMPLATE = {% if cleanup_older_days is not none %}'{{ cleanup_older_days }}'{% else %}nil{% endif %}
+DEFAULT_OLDER_THAN = begin
+  env_value = ENV['CLEANUP_OLDER_THAN']
+  env_value = nil if env_value.nil? || env_value.strip.empty?
+  env_value || DEFAULT_OLDER_THAN_TEMPLATE
+end
+
+unless DEFAULT_POLICY_ENABLED
+  puts "gitlab_registry_cleanup_policy.enabled is false; exiting without changes."
+  exit 0
+end
+
+POLICY_ASSOCIATIONS = [
+  :container_registry_cleanup_policy,
+  :container_expiration_policy,
+  :container_registry_expiration_policy
+].freeze
+
+def fetch_cleanup_policy(project)
+  POLICY_ASSOCIATIONS.each do |association|
+    next unless project.respond_to?(association)
+
+    policy = project.public_send(association)
+    return policy if policy
+
+    builder = "build_#{association}".to_sym
+    return project.public_send(builder) if project.respond_to?(builder)
+  end
+
+  nil
+end
+
+puts "Using defaults: keep_n=#{DEFAULT_KEEP_N}, cadence=#{DEFAULT_CADENCE}, name_regex=#{DEFAULT_NAME_REGEX}"
+
+app_settings = ApplicationSetting.current
+
+capacity_attribute = if app_settings.respond_to?(:container_registry_cleanup_policies_worker_capacity)
+                       :container_registry_cleanup_policies_worker_capacity
+                     elsif app_settings.respond_to?(:container_registry_expiration_policies_worker_capacity)
+                       :container_registry_expiration_policies_worker_capacity
+                     end
+
+if capacity_attribute.nil?
+  warn "[WARN] ApplicationSetting has no registry worker capacity attribute; skipping capacity tuning"
+else
+  capacity_value = app_settings.public_send(capacity_attribute)
+
+  if capacity_value.nil? || capacity_value == 0
+    app_settings.update!(capacity_attribute => 10)
+    puts "Set #{capacity_attribute} = 10"
+  end
+end
+
+Project.where(marked_for_deletion_at: nil).find_each(batch_size: 100) do |project|
+  begin
+    policy = fetch_cleanup_policy(project)
+
+    unless policy
+      warn "[WARN] #{project.full_path} does not expose container registry cleanup policies; skipping"
+      next
+    end
+
+    if policy.enabled
+      puts "[SKIP] #{project.full_path} (policy already enabled)"
+      next
+    end
+
+    policy.enabled         = true
+    policy.keep_n          = DEFAULT_KEEP_N
+    policy.cadence         = DEFAULT_CADENCE
+    policy.name_regex      = DEFAULT_NAME_REGEX
+    policy.name_regex_keep = DEFAULT_NAME_REGEX_KEEP
+    policy.older_than      = DEFAULT_OLDER_THAN
+    policy.next_run_at     = Time.zone.now + 5.minutes
+
+    if policy.changed?
+      policy.save!
+      puts "[OK]   Configured cleanup policy for #{project.full_path}"
+    else
+      puts "[NOP]  Nothing to change for #{project.full_path}"
+    end
+
+  rescue => e
+    warn "[ERR]  Failed to configure #{project.full_path}: #{e.class}: #{e.message}"
+  end
+end
+
+puts "Done."

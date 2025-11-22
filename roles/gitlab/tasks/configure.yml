@@ -79,4 +79,35 @@
     mode: "0644"
   when: "not gitlab_is_primary"
 
+- name: "Ensure registry cleanup script directory exists"
+  ansible.builtin.file:
+    path: "{{ gitlab_registry_cleanup_script_path | dirname }}"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  when: gitlab_registry_cleanup_policy.enabled
+
+- name: "Install registry cleanup script"
+  ansible.builtin.template:
+    src: "registry_default_cleanup_policy.rb.j2"
+    dest: "{{ gitlab_registry_cleanup_script_path }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  when: gitlab_registry_cleanup_policy.enabled
+
+- name: "Configure registry cleanup cron job"
+  ansible.builtin.cron:
+    name: "gitlab registry cleanup policy"
+    user: "{{ gitlab_registry_cleanup_cron.user | default('root') }}"
+    minute: "{{ gitlab_registry_cleanup_cron.minute | default('0') }}"
+    hour: "{{ gitlab_registry_cleanup_cron.hour | default('1') }}"
+    day: "{{ gitlab_registry_cleanup_cron.day | default('*') }}"
+    month: "{{ gitlab_registry_cleanup_cron.month | default('*') }}"
+    weekday: "{{ gitlab_registry_cleanup_cron.weekday | default('*') }}"
+    job: "{{ gitlab_registry_cleanup_cron.job | default('gitlab-rails runner ' ~ gitlab_registry_cleanup_script_path) }}"
+    state: "{{ 'present' if gitlab_registry_cleanup_cron.enabled else 'absent' }}"
+  when: gitlab_registry_cleanup_policy.enabled
+
 ...
