@@ -1,8 +1,5 @@
 name: Push to Galaxy
 
-env:
-  ANSIBLE_GALAXY_TOKEN: ${{ secrets.ANSIBLE_GALAXY_TOKEN }}
-
 on:
   workflow_dispatch:
   push:
@@ -23,8 +20,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-      - run: pip install ansible
-      - run: |
-          ansible-galaxy collection build
-          ansible-galaxy collection publish --token ${{ env.ANSIBLE_GALAXY_TOKEN }} *.tar.gz
+          python-version: '3.13'
+      - name: Install collection build tools
+        run: python -m pip install "ansible-core==2.19.5"
+      - name: Show tool versions
+        run: |
+          python --version
+          ansible-galaxy --version
+      - name: Build collection
+        run: |
+          mkdir -p "$RUNNER_TEMP/galaxy-artifacts"
+          ansible-galaxy collection build --output-path "$RUNNER_TEMP/galaxy-artifacts"
+      - name: Publish collection to Galaxy
+        env:
+          ANSIBLE_GALAXY_TOKEN: ${{ secrets.ANSIBLE_GALAXY_TOKEN }}
+        run: ansible-galaxy collection publish --token "$ANSIBLE_GALAXY_TOKEN" "$RUNNER_TEMP"/galaxy-artifacts/*.tar.gz
