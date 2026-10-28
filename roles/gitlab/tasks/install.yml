@@ -15,13 +15,8 @@
 - name: "Prepare Debian GitLab installation"
   when: "ansible_facts.os_family == 'Debian'"
   block:
-    - name: "Remove GitLab APT GPG key from legacy trusted.gpg keyring"
-      ansible.builtin.apt_key:
-        url: "{{ gitlab_gpg_key_url }}"
-        id: "{{ gitlab_gpg_key_id }}"
-        state: "absent"
-      when: "not __gitlab_is_initial_dryrun"
-
+    # apt-key was removed in Debian 13. The deb822 repository below carries
+    # its own Signed-By key and does not need the legacy trusted.gpg keyring.
     - name: "Remove GitLab APT repository from sources.list"
       ansible.builtin.apt_repository:
         repo: "deb {{ gitlab_repo_url }} {{ ansible_facts.distribution_release }} main"

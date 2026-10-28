@@ -20,4 +20,7 @@ upstream dependency tasks can still update package indexes or create temporary f
 
 Set gitlab_upgrade_stops to verified patch versions for your upgrade route.
 Application versions are pinned in inventory, not in role defaults.
-Collection version 1.1.0 is local and has not been published.
+Collection version 1.1.1 removes the legacy apt_key cleanup task for Debian 13.
+APT repository signing remains enabled through deb822_repository Signed-By.
+The unused gitlab_gpg_key_id variable has been removed. Publish this patch release
+before refreshing the collection on the Ansible controller.
