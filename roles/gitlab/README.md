@@ -5,7 +5,7 @@ SPDX-FileCopyrightText: Helmholtz-Zentrum Dresden-Rossendorf (HZDR)
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# `bestiancode.gitlab.gitlab` Ansible Role
+# `hifis.toolkit.gitlab` Ansible Role
 
 [![CI Status](https://github.com/hifis-net/ansible-collection-toolkit/actions/workflows/gitlab.yml/badge.svg)](https://github.com/hifis-net/ansible-collection-toolkit/actions/workflows/gitlab.yml)
 
@@ -13,9 +13,10 @@ A role to install and configure official GitLab Omnibus package.
 
 Currently [supported platforms](meta/main.yml) are:
 
-- Debian 11 (Bullseye)
-- Ubuntu 22.04 LTS (Jammy Jellyfish)
+- AlmaLinux 9
+- Ubuntu 22.04 LTS (Jemmy Jellyfish)
 - Ubuntu 24.04 LTS (Noble Numbat)
+- Ubuntu 26.04 LTS (Resolute)
 
 ## Requirements
 
@@ -37,18 +38,25 @@ gitlab_edition: "gitlab-ee"
 #### GitLab Version and Release
 
 Set a specific GitLab version to install. Please ensure that you also specify
-the desired release. You can find the available releases on
-[packages.gitlab.com/gitlab](https://packages.gitlab.com/gitlab).
+the desired release. You can find the available GitLab package releases
+at the official [GitLab package repository](https://packages.gitlab.com/gitlab).
 
 ```yaml
-gitlab_version: "18.6.0"
+gitlab_version: "17.4.2"
 
-# GitLab Release for Debian/Ubuntu packages
-gitlab_release: "ee.0"
+# GitLab Release for RHEL/AlmaLinux 9
+gitlab_release: "ce.0.el9"
+
+# GitLab Release for Ubuntu/Debian
+gitlab_release: "ce.0"
 ```
 
-**Please note:** If no GitLab version is specified the role will always install
-the latest available GitLab package.
+The release has to match the GitLab edition, i.e. use `ee.0` or `ee.0.el9`
+for `gitlab-ee`.
+
+**Please note:** The version only takes effect if both `gitlab_version` and
+`gitlab_release` are set. Otherwise the role will always install the latest
+available GitLab package.
 
 #### Do not display sensitive changes in diffs by default
 
@@ -64,14 +72,6 @@ URL to the GPG key that was used to sign the packages.
 gitlab_gpg_key_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/gpgkey"
 ```
 
-#### GPG Key ID
-
-Identifier of GPG key that was used to sign the packages.
-
-```yaml
-gitlab_gpg_key_id: "F6403F6544A38863DAA0B6E03F01618A51312F3F"
-```
-
 #### Package Repository URL
 
 URL to the package repository based on the operating system.
@@ -81,6 +81,12 @@ gitlab_repo_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/ubuntu
 ```
 
 #### Source Package Repository URL
+
+URL to the source package repository (*CentOS* and *AlmaLinux* only).
+
+```yaml
+gitlab_source_repo_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/el/{{ ansible_facts.distribution_major_version }}/SRPMS"
+```
 
 #### Package Name
 
@@ -130,6 +136,21 @@ gitlab_backup_keep_time: '604800'
 
 ### Optional Role Variables
 
+#### Primary Node in a Multi-Node Setup
+
+Specify whether this host is the primary GitLab node:
+
+```yaml
+gitlab_is_primary: false
+```
+
+The primary node runs the database migrations: it waits for background
+migrations before an upgrade, reconfigures GitLab with post-deployment
+migrations skipped and runs the registry metadata database migrations.
+All other nodes skip the automatic database backup on upgrades.
+In a multi-node setup, set this variable to `true` on exactly one node.
+For a single-node installation, set it to `true` as well.
+
 #### Name of Template for GitLab's Configuration File
 
 Specify the name of the template for GitLab's configuration file which
@@ -148,9 +169,22 @@ contains custom configurations of your GitLab instance:
 gitlab_configuration_file_path: '/etc/gitlab/gitlab.rb'
 ```
 
+#### Path to GitLab's Secrets File
+
+Specify the path on the Ansible controller to a `gitlab-secrets.json` file
+which is copied to `/etc/gitlab/gitlab-secrets.json`. This is required to share
+secrets between multiple GitLab nodes or to restore a GitLab instance from a
+backup. If undefined, the file is not managed by the role:
+
+```yaml
+gitlab_secrets_file: 'files/gitlab-secrets.json'
+```
+
 #### GitLab Theme to Be Used by Default
 
-Choose the Default Theme to be used for new GitLab users:
+Choose the default navigation theme to be used for new GitLab users.
+See the [GitLab documentation on navigation themes](https://docs.gitlab.com/user/profile/preferences/#change-the-navigation-theme)
+for the available themes. Unknown theme IDs fall back to GitLab's default theme:
 
 ```yaml
 gitlab_default_theme: '2'
@@ -169,7 +203,7 @@ gitlab_backup_path: '/var/opt/gitlab/backups'
 Set the port GitLab's web-server Nginx is listening on:
 
 ```yaml
-gitlab_nginx_listen_port: '80'
+gitlab_nginx_listen_port: 80
 ```
 
 #### Does Web-Server Nginx accept HTTPS Requests?
@@ -177,7 +211,7 @@ gitlab_nginx_listen_port: '80'
 Choose whether GitLab's web-server Nginx accepts HTTPS requests:
 
 ```yaml
-gitlab_nginx_listen_https: 'false'
+gitlab_nginx_listen_https: false
 ```
 
 #### Does Web-Server Nginx Redirect HTTP Requests to HTTPS?
@@ -185,7 +219,7 @@ gitlab_nginx_listen_https: 'false'
 Choose whether GitLab's web-server Nginx redirects HTTP requests to HTTPS:
 
 ```yaml
-gitlab_nginx_redirect_http_to_https: 'false'
+gitlab_nginx_redirect_http_to_https: false
 ```
 
 #### Set GitLab feature flags
@@ -223,7 +257,7 @@ scenario services like *sidekiq* or *puma* are not required. Set to `true` to
 prevent the role from reloading those services:
 
 ```yaml
-gitlab_mattermost_only_context: 'false'
+gitlab_mattermost_only_context: false
 ```
 
 ### Variables to be Set if External Redis is Used
@@ -233,7 +267,7 @@ gitlab_mattermost_only_context: 'false'
 Set switch to `false` to enable external Redis instance:
 
 ```yaml
-gitlab_use_internal_redis: 'false'
+gitlab_use_internal_redis: false
 ```
 
 #### Password to Authenticate Redis Services within Cluster
@@ -281,7 +315,7 @@ gitlab_redis_sentinel_ips:
 Choose port on which Redis Sentinel servers are listening:
 
 ```yaml
-gitlab_redis_sentinel_port: '26379'
+gitlab_redis_sentinel_port: 26379
 ```
 
 #### Whitelist IP Address Range for Monitoring Redis Sentinel Servers
@@ -343,7 +377,7 @@ gitlab_gitaly_instance_ip: '127.0.0.1'
 Specify port of the Gitaly instance:
 
 ```yaml
-gitlab_gitaly_instance_port: '8075'
+gitlab_gitaly_instance_port: 8075
 ```
 
 ### Variables to be Set if External PostgreSQL Database is Used
@@ -353,7 +387,7 @@ gitlab_gitaly_instance_port: '8075'
 Set switch to `false` to enable external PostgreSQL Database instance:
 
 ```yaml
-gitlab_use_internal_postgresql: 'false'
+gitlab_use_internal_postgresql: false
 ```
 
 #### IP Address of External PostgreSQL Database Instance
@@ -391,6 +425,36 @@ gitlab_rails_monitoring_whitelist:
   - "{{ gitlab_ip_range }}"
 ```
 
+#### Enable Email Functionality
+
+Enable GitLab's email functionality:
+
+```yaml
+gitlab_email_enabled: false
+```
+
+#### Enable SMTP for Sending Emails
+
+Send emails via SMTP instead of Sendmail:
+
+```yaml
+gitlab_smtp_enable: false
+```
+
+**Please note**: The SMTP server settings like `smtp_address` or `smtp_port`
+need to be configured via `gitlab_additional_configurations`.
+
+#### Enable LDAP Authentication
+
+Enable LDAP authentication:
+
+```yaml
+gitlab_ldap_enabled: false
+```
+
+**Please note**: The LDAP servers need to be configured via
+`gitlab_additional_configurations`.
+
 #### Configure GitLab Registry
 
 Enable GitLab container registry:
@@ -399,47 +463,14 @@ Enable GitLab container registry:
 gitlab_registry_enable: "true"
 ```
 
+The external URL of the registry can be set via
+`gitlab_ruby_configuration_calls` with the key `registry_external_url`
+(see [Configurations via Ruby Function Calls](#configurations-via-ruby-function-calls)).
+
 **Please note**: If you do not run a load balancer in front of GitLab and let
 NGinx care about SSL encryption, please also configure
 `registry_nginx['ssl_certificate']` and `registry_nginx['ssl_certificate_key']`
 via `gitlab_additional_configurations`.
-
-#### Registry default cleanup helper
-
-This role can deploy a helper script that enables the modern registry cleanup
-policy across all projects and keeps it in sync via cron. Toggle it with
-`gitlab_registry_cleanup_policy` and adjust the runner/cron/log paths below.
-
-```yaml
-gitlab_registry_cleanup_policy:
-  enabled: true
-  keep_last: 10
-  keep_tags: latest
-  older_days: null        # allow GitLab defaults (set number of days to override)
-
-gitlab_registry_cleanup_script_path: "/opt/gitlab/scripts/registry_default_cleanup_policy.rb"
-gitlab_registry_cleanup_log_path: "/var/log/gitlab_registry_cleanup.log"
-
-gitlab_registry_cleanup_cron:
-  enabled: true
-  user: "root"
-  minute: "0"
-  hour: "1"
-  day: "*"
-  month: "*"
-  weekday: "*"
-  # optionally override the entire runner command
-  # job: "gitlab-rails runner /opt/gitlab/scripts/custom.rb > /var/log/custom.log 2>&1"
-```
-
-- `gitlab_registry_cleanup_policy` mirrors the GitLab defaults and feeds the
-  helper via environment variables.
-- `gitlab_registry_cleanup_script_path` controls where the template is written
-  (directory ownership is handled automatically).
-- `gitlab_registry_cleanup_log_path` is created/touched and used for stdout/
-  stderr redirection so you always keep the latest run output.
-- `gitlab_registry_cleanup_cron` manages the cron entry (set `enabled: false`
-  to remove it or override `job` for custom runners).
 
 ### Additional Configurations given as Role Variables
 
@@ -517,7 +548,7 @@ None.
 ```yaml
     - hosts: servers
       roles:
-         - role: bestiancode.gitlab.gitlab
+         - role: hifis.toolkit.gitlab
 ```
 
 ## License
@@ -526,13 +557,11 @@ None.
 
 ## Author Information
 
-Originally created by [HIFIS Software Services](https://hifis.net/), this role
-is now maintained and co-authored by **Oleg Smirnov**.
+This role was created by [HIFIS Software Services](https://hifis.net/).
 
 ## Contributors
 
 We would like to thank and give credits to the following contributors of this
 project:
 
-- Oleg Smirnov
 - [flyinggecko](https://github.com/flyinggecko)

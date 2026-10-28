@@ -1,0 +1,72 @@
+---
+- name: "Read the installed GitLab version"
+  become: true
+  ansible.builtin.slurp:
+    path: "/var/opt/gitlab/gitlab-rails/VERSION"
+  register: "__gitlab_version_base64"
+
+- name: "Normalize the installed GitLab version"
+  ansible.builtin.set_fact:
+    __gitlab_installed_version: "{{ __gitlab_version_base64.content | b64decode | trim }}"
+
+- name: "Require an explicit package version and prevent downgrades"
+  ansible.builtin.assert:
+    that:
+      - "gitlab_version is match('^[0-9]+\\.[0-9]+\\.[0-9]+$')"
+      - "gitlab_release | length > 0"
+      - "gitlab_version is version(__gitlab_installed_version, 'ge')"
+    fail_msg: "Pin gitlab_version and gitlab_release; automatic latest installs and downgrades are disabled."
+
+- name: "Prevent skipping a required upgrade stop"
+  ansible.builtin.assert:
+    that:
+      - "gitlab_version is version(item, 'le') or __gitlab_installed_version is version(item, 'ge')"
+    fail_msg: "Upgrade to {{ item }} and finish its migrations before requesting {{ gitlab_version }}."
+  loop: "{{ gitlab_upgrade_stops }}"
+
+- name: "Inspect migrations before changing the GitLab package"
+  when: "gitlab_version is version(__gitlab_installed_version, 'gt')"
+  block:
+    - name: "Check database schema migration status"
+      become: true
+      ansible.builtin.command: "gitlab-rake db:migrate:status"
+      register: "gitlab_db_migrate_status"
+      changed_when: false
+      check_mode: false
+
+    - name: "Stop if schema or post-deployment migrations are pending"
+      ansible.builtin.assert:
+        that:
+          - "(gitlab_db_migrate_status.stdout | regex_search('(?m)^\\s*down\\s')) is none"
+        fail_msg: "Pending database migrations exist. Finish the current installation before upgrading."
+
+    - name: "Check all batched background migration states"
+      become: true
+      ansible.builtin.command:
+        argv:
+          - "gitlab-psql"
+          - "-tAc"
+          - "SELECT COUNT(*) FROM batched_background_migrations WHERE status NOT IN (3, 6);"
+      register: "gitlab_batched_remaining"
+      changed_when: false
+      check_mode: false
+      until: "gitlab_batched_remaining.stdout | trim == '0'"
+      retries: "{{ gitlab_background_migration_retries }}"
+      delay: "{{ gitlab_background_migration_delay }}"
+
+    - name: "Read the PostgreSQL server version"
+      become: true
+      ansible.builtin.command:
+        argv: ["gitlab-psql", "-tAc", "SHOW server_version_num;"]
+      register: "gitlab_postgresql_server_version"
+      changed_when: false
+      check_mode: false
+      when: "gitlab_version is version('19.0.0', 'ge')"
+
+    - name: "Require PostgreSQL 17 before installing GitLab 19"
+      ansible.builtin.assert:
+        that:
+          - "gitlab_postgresql_server_version.stdout | trim | int >= 170000"
+        fail_msg: "Upgrade PostgreSQL to 17 while on GitLab 18.11 before installing GitLab 19."
+      when: "gitlab_version is version('19.0.0', 'ge')"
+...

@@ -5,14 +5,6 @@
 
 ---
 
-- name: "Ensure supported distribution"
-  ansible.builtin.assert:
-    that:
-      - ansible_facts.distribution in ["Debian", "Ubuntu"]
-    fail_msg: >-
-      Only Debian and Ubuntu hosts are supported by this role. Detected
-      {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}.
-
 - name: "Set OS distribution dependent variables"
   ansible.builtin.include_vars: "{{ ansible_facts.distribution }}.yml"
 
@@ -21,16 +13,13 @@
 
 - name: "Reconfigure GitLab"
   ansible.builtin.import_tasks: "reconfigure.yml"
-  become: true
   when: "__gitlab_reconfigure_failed.stat.exists"
 
 - name: "Install GitLab"
   ansible.builtin.import_tasks: "install.yml"
-  become: true
 
 - name: "Configure GitLab"
   ansible.builtin.import_tasks: "configure.yml"
-  become: true
 
 - name: "Check if GitLab is already configured"
   ansible.builtin.stat:

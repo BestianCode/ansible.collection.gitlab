@@ -9,27 +9,27 @@
   become: true
   ansible.builtin.command: "gitlab-ctl reconfigure"
   changed_when: true
-  environment:
-    SKIP_POST_DEPLOYMENT_MIGRATIONS: "true"
+  environment: "{{ {'SKIP_POST_DEPLOYMENT_MIGRATIONS': 'true'} if gitlab_skip_post_deployment_migrations | bool else {} }}"
   when:
-    - "gitlab_is_primary"
+    - "gitlab_is_primary | bool"
 
 - name: "Reconfigure Non Primary GitLab"
   become: true
   ansible.builtin.command: "gitlab-ctl reconfigure"
   changed_when: true
   when:
-    - "not gitlab_is_primary"
+    - "not gitlab_is_primary | bool"
 
 - name: "Run registry metadata database migrations"
   become: true
-  ansible.builtin.command: "gitlab-ctl registry-database migrate up --skip-post-deployment"
+  ansible.builtin.command: "gitlab-ctl registry-database migrate up{{ ' --skip-post-deployment' if gitlab_skip_post_deployment_migrations | bool else '' }}"
   changed_when: true
   when:
     - "__gitlab_registry_database_used"
-    - "gitlab_is_primary"
+    - "gitlab_is_primary | bool"
 
 - name: "Remove file that indicates a failed reconfigure"
+  become: true
   ansible.builtin.file:
     path: "/etc/gitlab/reconfigure_failed"
     state: "absent"

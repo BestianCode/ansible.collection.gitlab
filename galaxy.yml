@@ -8,7 +8,7 @@ namespace: bestiancode
 name: gitlab
 
 # The version of the collection. Must be compatible with semantic versioning
-version: 1.0.7
+version: 1.1.0
 
 # The path to the Markdown (.md) readme file. This path is relative to the root of the collection
 readme: README.md
@@ -40,7 +40,10 @@ tags: []
 # collection label 'namespace.name'. The value is a version range
 # L(specifiers,https://python-semanticversion.readthedocs.io/en/latest/#requirement-specification). Multiple version
 # range specifiers can be set and are separated by ','
-dependencies: {}
+dependencies:
+  ansible.posix: '>=2.1.0'
+  community.crypto: '>=3.0.0'
+  community.general: '>=11.0.0'
 
 # The URL of the originating SCM repository
 repository: https://github.com/BestianCode/ansible.collection.gitlab

@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ---
-gitlab_runner_version: "18.6.0"
+gitlab_runner_version: ""
 
-gitlab_runner_pkg_version: "{{ gitlab_runner_version + '-1' if gitlab_runner_version | length > 0 and gitlab_runner_version is version('16.9.0', 'ge') else gitlab_runner_version }}"
+gitlab_runner_pkg_version: "{{ gitlab_runner_version + '-1' if gitlab_runner_version | length > 0 else gitlab_runner_version }}"
 
 gitlab_runner_deb_file: ""
 
@@ -20,7 +20,7 @@ gitlab_runner_transpiler_binary_checksum: "sha256:5833ce9f9c2932d9b02bc05821ffb6
 
 gitlab_runner_install_docker: true
 
-gitlab_runner_namerservers:
+gitlab_runner_nameservers:
     - "9.9.9.9"
     - "149.112.112.112"
 
@@ -46,7 +46,7 @@ gitlab_runner_session_server_listen_address: "0.0.0.0:8093"
 gitlab_runner_session_server_advertise_address: "{{ gitlab_runner_session_server_listen_address }}"
 gitlab_runner_session_server_timeout: 1800
 
-gitlab_runner_autoscaler_plugin_version: "v0.28.0"
+gitlab_runner_autoscaler_plugin_version: "v0.33.0"
 gitlab_runner_autoscaler_binary_version: "{{ gitlab_runner_autoscaler_plugin_version | replace('v', '') }}"
 gitlab_runner_autoscaler_plugin_url: "https://github.com/sardinasystems/fleeting-plugin-openstack/releases/download/{{ gitlab_runner_autoscaler_plugin_version }}/fleeting-plugin-openstack_{{ gitlab_runner_autoscaler_binary_version }}_linux_amd64.tar.gz"
 gitlab_runner_autoscaler_plugin_checksumfile: "https://github.com/sardinasystems/fleeting-plugin-openstack/releases/download/{{ gitlab_runner_autoscaler_plugin_version }}/fleeting-plugin-openstack_{{ gitlab_runner_autoscaler_binary_version }}_sha512-checksums.txt"

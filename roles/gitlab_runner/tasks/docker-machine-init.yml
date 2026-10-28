@@ -5,6 +5,7 @@
 
 ---
 - name: "Check if docker-machine initialization is necessary"
+  become: true
   ansible.builtin.stat:
     path: "/root/.docker/machine/certs/ca.pem"
   register: "__docker_machine_config"
@@ -15,16 +16,20 @@
     - name: "Extract machine options as command line parameters"
       ansible.builtin.set_fact:
         __machine_options: "--{{ gitlab_runner.machine_options | join(' --') }}"
+      no_log: "{{ gitlab_runner_hide_sensitive_changes }}"
 
     - name: "Create a VM once via docker-machine"
+      become: true
       when: "not ansible_check_mode"
       ansible.builtin.command: "docker-machine create -d {{ gitlab_runner.machine_driver }} {{ __machine_options }} test"
       register: "__creation_cmd"
       changed_when: "__creation_cmd.rc == 0"
+      no_log: "{{ gitlab_runner_hide_sensitive_changes }}"
       tags: "notest"
 
   always:
     - name: "Remove the VM"
+      become: true
       when: "not ansible_check_mode"
       ansible.builtin.command: "docker-machine rm -y --force test"
       register: "__removal_cmd"

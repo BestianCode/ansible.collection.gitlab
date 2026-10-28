@@ -15,7 +15,7 @@ Currently [supported platforms](meta/main.yml) are:
 
 - Ubuntu 22.04 LTS
 - Ubuntu 24.04 LTS
-- Debian Bullseye
+- Ubuntu 26.04 LTS
 - Debian Bookworm
 
 ## Requirements
@@ -27,12 +27,12 @@ None.
 ### GitLab-Runner variables
 
 ```yaml
-gitlab_runner_version: "18.6.0"
+gitlab_runner_version: "18.0.2"
 ```
 The version of GitLab-Runner to install.
 
 ```yaml
-gitlab_runner_pkg_version: "18.6.0-1"
+gitlab_runner_pkg_version: "18.0.2-1"
 ```
 The version to be used to determine the GitLab-Runner
 [package](https://packages.gitlab.com/runner/gitlab-runner) (optional).
@@ -120,12 +120,15 @@ The checksum of the download transpiler binary. This must correspond to the file
 downloaded via the `gitlab_runner_transpiler_binary_url` variable.
 
 ```yaml
-gitlab_runner_namerservers:
+gitlab_runner_nameservers:
     - 9.9.9.9
     - 149.112.112.112
 ```
 
 The DNS nameservers to be used by the Openstack Flatcar virtual machine.
+
+Note: This variable was previously named `gitlab_runner_namerservers` (sic)
+and is no longer supported.
 
 ```yaml
 gitlab_runner_registry_mirrors:
@@ -422,9 +425,6 @@ gitlab_runner_list:
     docker_shm_size: 2147483648
     docker_privileged: true
     docker_network_mtu: "{{ gitlab_runner_mtu }}"
-    locked: false
-    tags: "{{ gitlab_runner_tags | default([]) }}"
-    run_untagged: "{{ gitlab_runner_run_untagged | default(false) }}"
     cache_insecure: "false"
     autoscaler_max_builds: 1
     autoscaler_idle_count: 4

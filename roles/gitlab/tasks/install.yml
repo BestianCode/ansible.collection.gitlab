@@ -10,6 +10,7 @@
   ansible.builtin.package:
     name: "{{ gitlab_dependencies }}"
     state: "present"
+    allowerasing: "{{ true if ansible_facts['os_family'] == 'RedHat' else omit }}"
 
 - name: "Prepare Debian GitLab installation"
   when: "ansible_facts.os_family == 'Debian'"
@@ -36,6 +37,7 @@
         update_cache: false
 
     - name: "Add GitLab APT repository"
+      become: true
       ansible.builtin.deb822_repository:
         name: "{{ gitlab_edition }}"
         types:
@@ -51,108 +53,69 @@
         enabled: true
 
     - name: "Update APT package cache"
+      become: true
       ansible.builtin.apt:
         update_cache: true
       check_mode: false
       changed_when: false
+
+- name: "Install GitLab on RedHat Like OS"
+  when: "ansible_facts.os_family == 'RedHat'"
+  block:
+    - name: "Add GitLab yum repository"
+      become: true
+      ansible.builtin.yum_repository:
+        name: "gitlab_{{ gitlab_edition }}"
+        description: "GitLab yum repo"
+        baseurl: "{{ gitlab_repo_url }}"
+        state: "present"
+        repo_gpgcheck: true
+        gpgcheck: true
+        enabled: true
+        gpgkey:
+          - "{{ gitlab_gpg_key_url }}"
+          - "{{ gitlab_gpg_key_url }}/gitlab-{{ gitlab_edition }}-3D645A26AB9FBD22.pub.gpg"
+          - "{{ gitlab_gpg_key_url }}/gitlab-{{ gitlab_edition }}-CB947AD886C8E8FD.pub.gpg"
+        sslverify: true
+        sslcacert: "/etc/pki/tls/certs/ca-bundle.crt"
+        metadata_expire: "300"
+
+    - name: "Add GitLab source yum repository"
+      become: true
+      ansible.builtin.yum_repository:
+        name: "gitlab_{{ gitlab_edition }}-source"
+        description: "GitLab source yum repo"
+        baseurl: "{{ gitlab_source_repo_url }}"
+        state: "present"
+        repo_gpgcheck: true
+        gpgcheck: true
+        enabled: true
+        gpgkey:
+          - "{{ gitlab_gpg_key_url }}"
+          - "{{ gitlab_gpg_key_url }}/gitlab-{{ gitlab_edition }}-3D645A26AB9FBD22.pub.gpg"
+          - "{{ gitlab_gpg_key_url }}/gitlab-{{ gitlab_edition }}-CB947AD886C8E8FD.pub.gpg"
+        sslverify: true
+        sslcacert: "/etc/pki/tls/certs/ca-bundle.crt"
+        metadata_expire: "300"
+
+    - name: "Update yum package cache"
+      become: true
+      ansible.builtin.dnf:
+        update_cache: true
+      check_mode: false
 
 - name: "Check if VERSION file exists"
   ansible.builtin.stat:
     path: "/var/opt/gitlab/gitlab-rails/VERSION"
   register: "__gitlab_version_file"
 
-- name: "Pre-upgrade checks on primary node"
+- name: "Check the upgrade path and pending migrations"
+  ansible.builtin.import_tasks: "pre-upgrade.yml"
   when:
-    - gitlab_is_primary
+    - "gitlab_is_primary | bool"
     - "__gitlab_version_file.stat.exists"
     - "__gitlab_rails_binary.stat.exists"
     - "__gitlab_rails_binary.stat.executable"
-  block:
-
-    - name: "Get the currently installed GitLab version"
-      ansible.builtin.slurp:
-        path: "/var/opt/gitlab/gitlab-rails/VERSION"
-      register: "__gitlab_version_base64"
-
-    - name: "Set fact about installed GitLab version"
-      ansible.builtin.set_fact:
-        __gitlab_installed_version: "{{ __gitlab_version_base64['content'] | b64decode | trim }}"
-      check_mode: false
-
-    - name: "Ensure database and background migrations are completed before upgrade"
-      when: "gitlab_version == '' or __gitlab_installed_version is version(gitlab_version, operator='lt', strict=True)"
-      block:
-
-        - name: "Check database schema migration status"
-          become: true
-          ansible.builtin.command:
-            cmd: "gitlab-rake db:migrate:status"
-          register: gitlab_db_migrate_status
-          changed_when: false
-          check_mode: false
-
-        - name: "Detect pending schema migrations"
-          ansible.builtin.set_fact:
-            gitlab_db_has_down: >-
-              {{
-                (gitlab_db_migrate_status.stdout
-                  | regex_search('^\\s*down\\s', multiline=True)) is not none
-              }}
-          check_mode: false
-
-        - name: "Run pending schema migrations if needed"
-          become: true
-          ansible.builtin.command:
-            cmd: "gitlab-rake db:migrate"
-          register: gitlab_db_migrate
-          check_mode: false
-          changed_when: true
-          when: gitlab_db_has_down | default(false)
-
-        - name: "Re-check database schema migration status"
-          become: true
-          ansible.builtin.command:
-            cmd: "gitlab-rake db:migrate:status"
-          register: gitlab_db_migrate_status_after
-          changed_when: false
-          check_mode: false
-
-        - name: "Fail if schema migrations are still pending"
-          ansible.builtin.fail:
-            msg: >-
-              There are still pending schema migrations before upgrade:
-              {{ gitlab_db_migrate_status_after.stdout }}
-          when: >-
-            (gitlab_db_migrate_status_after.stdout
-              | regex_search('^\\s*down\\s', multiline=True)) is not none
-
-        - name: "Check if batched_background_migrations table exists"
-          become: true
-          ansible.builtin.command: >
-            gitlab-psql -tAc
-            "SELECT to_regclass('public.batched_background_migrations') IS NOT NULL;"
-          register: gitlab_batched_table_exists
-          changed_when: false
-          check_mode: false
-
-        - name: "Set fact whether batched background migrations table exists"
-          ansible.builtin.set_fact:
-            gitlab_has_batched_migrations: "{{ gitlab_batched_table_exists.stdout | trim == 't' }}"
-          check_mode: false
-
-        - name: "Wait until all batched background migrations are finished"
-          become: true
-          ansible.builtin.command: >
-            gitlab-psql -tAc
-            "SELECT COUNT(*) FROM batched_background_migrations
-             WHERE status NOT IN (3, 6);"
-          register: gitlab_batched_remaining
-          until: gitlab_batched_remaining.stdout | trim == '0'
-          retries: 60
-          delay: 60
-          check_mode: false
-          changed_when: false
-          when: gitlab_has_batched_migrations | default(false)
 
 - name: "Install GitLab and add helper to detect failed reconfigures"
   block:
@@ -168,6 +131,7 @@
   rescue:
 
     - name: "Ensure GitLab directory exists"
+      become: true
       ansible.builtin.file:
         path: "/etc/gitlab"
         state: "directory"
@@ -176,6 +140,7 @@
         mode: "0775"
 
     - name: "Create file to detect a failed reconfigure"
+      become: true
       ansible.builtin.copy:
         content: "This file is managed by Ansible."
         dest: "/etc/gitlab/reconfigure_failed"
@@ -186,3 +151,5 @@
 
     - name: "Stop role execution due to failed package installation"
       ansible.builtin.fail:
+
+...

@@ -6,10 +6,10 @@
 ---
 
 gitlab_edition: "gitlab-ee"
-gitlab_version: "18.6.0"
+gitlab_version: ""
 gitlab_release: ""
-gitlab_gpg_key_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/gpgkey"
 gitlab_gpg_key_id: "F6403F6544A38863DAA0B6E03F01618A51312F3F"
+gitlab_gpg_key_url: "https://packages.gitlab.com/gitlab/{{ gitlab_edition }}/gpgkey"
 
 # Do not display sensitive changes in diffs by default
 gitlab_hide_sensitive_changes: true
@@ -17,7 +17,7 @@ gitlab_hide_sensitive_changes: true
 # Specify whether this is the GitLab primary node
 gitlab_is_primary: false
 
-# Name ot the GitLab configuration template
+# Name of the GitLab configuration template
 gitlab_configuration_file_template: "gitlab.rb.j2"
 # Path to the GitLab configuration file
 gitlab_configuration_file_path: "/etc/gitlab/gitlab.rb"
@@ -33,7 +33,7 @@ gitlab_backup_keep_time: "604800"
 # Backup directory
 gitlab_backup_path: "/var/opt/gitlab/backups"
 # Port for web-requests
-gitlab_nginx_listen_port: "80"
+gitlab_nginx_listen_port: 80
 # Whether to use https
 gitlab_nginx_listen_https: "false"
 # Whether to redirect to https
@@ -48,8 +48,8 @@ gitlab_redis_cluster_name: "redis-cluster"
 # List of IP addresses of Redis Sentinel instances
 gitlab_redis_sentinel_ips: []
 # Port on which Redis Sentinel instances are listening
-gitlab_redis_sentinel_port: "26379"
-# GitLap IP address range
+gitlab_redis_sentinel_port: 26379
+# GitLab IP address range
 gitlab_ip_range: "{{ ansible_facts.default_ipv4.address }}/24"
 
 # Whether to use GitLab Omnibus internal Gitaly
@@ -63,7 +63,7 @@ gitlab_secret_token: "changeme"
 # IP address of the Gitaly instance
 gitlab_gitaly_instance_ip: "127.0.0.1"
 # Port of the Gitaly instance
-gitlab_gitaly_instance_port: "8075"
+gitlab_gitaly_instance_port: 8075
 # Set to false to define gitlab_rails['repositories_storages'] on your own
 gitlab_use_default_repositories_storages: true
 
@@ -86,11 +86,6 @@ gitlab_smtp_enable: "false"
 # Registry configuration
 # Whether to enable GitLab Registry
 gitlab_registry_enable: "false"
-# External URL for the container registry
-gitlab_registry_external_url: "http://localhost:5005"
-gitlab_registry_http_addr: "127.0.0.1:5000"
-# Not to use NGINX in front of the registry
-gitlab_registry_nginx_enable: "false"
 
 # Mattermost configuration
 # Whether GitLab Omnibus is used to run Mattermost only without GitLab
@@ -98,13 +93,27 @@ gitlab_mattermost_only_context: "false"
 
 gitlab_feature_flags: []
 
+# Generic list of custom key-value pairs for GitLab's configuration file
+gitlab_additional_configurations: []
+
+# Generic list of Ruby function calls for GitLab's configuration file
+gitlab_ruby_configuration_calls: []
+
 # List of IP addresses or IP ranges that are allowed to access monitoring endpoints
 gitlab_rails_monitoring_whitelist:
   - "{{ gitlab_ip_range }}"
 # Internal variable to determine whether the configuration object for Gitaly
 # is already present in gitlab_additional_configurations
 __gitaly_configuration_exists: false
-
+# Local extensions retained on top of hifis.toolkit 7.0.1.
+gitlab_registry_http_addr: "127.0.0.1:5000"
+gitlab_registry_nginx_enable: "false"
+# Keep HIFIS multi-node semantics by default. Disable for a standalone upgrade.
+gitlab_skip_post_deployment_migrations: true
+# Explicit, verified patch versions of upgrade stops for this deployment.
+gitlab_upgrade_stops: []
+gitlab_background_migration_retries: 60
+gitlab_background_migration_delay: 60
 # Registry default clreanup policy
 gitlab_registry_cleanup_policy:
   enabled: false
